@@ -86,6 +86,7 @@ const getusertweets = AsyncHandler(async (req, res) => {
 
     const usertweets = await tweets
         .find({ owner: userId })
+        .populate("owner", "fullName avatar username")  
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 })

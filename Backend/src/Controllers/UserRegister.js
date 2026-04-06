@@ -103,20 +103,22 @@ const Login = AsyncHandler(async (req, res) => {
 
     const logedinuser = await User.findById(validateuser._id).select("-password -refreshToken");
 
-    const options = {
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
         httpOnly: true,
-        secure: true
-    }
+        secure: isProd, // secure cookies only in production (requires HTTPS)
+        sameSite: isProd ? 'None' : 'Lax'
+    };
 
     return res.status(200)
-        .cookie("accessToken", accessToken, options)
-        .cookie("refreshToken", refreshToken, options)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
         .json(new ApiResponse(200, "User logged in successfully", { accessToken, refreshToken, user: logedinuser }));
 
 })
 
 const Logout = AsyncHandler(async (req, res) => {
-    await User.findOneAndUpdate(
+    await User.findByIdAndUpdate(
         req.user._id,
         {
             $unset: { refreshToken: 1 }
@@ -125,13 +127,15 @@ const Logout = AsyncHandler(async (req, res) => {
             new: true
         }
     )
-    const option = {
+    const isProdLogout = process.env.NODE_ENV === 'production';
+    const clearOptions = {
         httpOnly: true,
-        secure: true,
-    }
+        secure: isProdLogout,
+        sameSite: isProdLogout ? 'None' : 'Lax'
+    };
     return res.status(200)
-        .clearCookie("accessToken", option)
-        .clearCookie("refreshToken", option)
+        .clearCookie("accessToken", clearOptions)
+        .clearCookie("refreshToken", clearOptions)
         .json(new ApiResponse(200, "User logged out successfully", null));
 
 })
@@ -156,13 +160,15 @@ const refreshaccesstoken = AsyncHandler(async (req, res) => {
 
         const { accessToken, refreshToken } = await generateaccess_refressToken(user._id);
 
-        const options = {
+        const isProdRefresh = process.env.NODE_ENV === 'production';
+        const refreshCookieOptions = {
             httpOnly: true,
-            secure: true
-        }
+            secure: isProdRefresh,
+            sameSite: isProdRefresh ? 'None' : 'Lax'
+        };
         return res.status(200)
-            .cookie("accessToken", accessToken, options)
-            .cookie("refreshToken", refreshToken, options)
+            .cookie("accessToken", accessToken, refreshCookieOptions)
+            .cookie("refreshToken", refreshToken, refreshCookieOptions)
             .json(
                 new ApiResponse(200, "Access token refreshed successfully", { accessToken, refreshToken })
             );
@@ -229,8 +235,8 @@ const updateuserdetails = AsyncHandler(async (req, res) => {
 
 const updateAvatarimg = AsyncHandler(async (req, res) => {
 
-    const { newavatar } = req.file;
-    if (!newavatar) {
+    const avatarPath = req.file?.path;
+    if (!avatarPath) {
         throw new Showerror(400, "updateAvatarimg: New avatar image is required");
     }
 
@@ -246,11 +252,11 @@ const updateAvatarimg = AsyncHandler(async (req, res) => {
     }
 
     // udating the avatar 
-    const avatar = await Uploadoncloudinary(newavatar.path);
+    const avatar = await Uploadoncloudinary(avatarPath);
     if (!avatar) {
         throw new Showerror(500, "updateAvatarimg: Error uploading new avatar image");
     }
-    const updatedavatar = User.findByIdAndUpdate(
+    const updatedavatar = await User.findByIdAndUpdate(
         req.user._id,
         {
             $set: {
@@ -266,28 +272,28 @@ const updateAvatarimg = AsyncHandler(async (req, res) => {
 
 const updateCoverimg = AsyncHandler(async (req, res) => {
 
-    const { newcoverImage } = req.file;
-    if (!newcoverImage) {
+    const coverImagePath = req.file?.path;
+    if (!coverImagePath) {
         throw new Showerror(400, "updateCoverimg: New cover image is required");
     }
 
     const user = await User.findById(req.user?._id);
     if (!user) {
-        throw new Showerror(404, "updatecoverimg: User not found");
+        throw new Showerror(404, "updateCoverimg: User not found");
     }
 
     // deteting the old cover image from cloudinary
     if (user.coverImage) {
         const publicId = user.coverImage.split("/").pop().split(".")[0];
-        deletingfilefromcloudinary(publicId);
+        await deletingfilefromcloudinary(publicId);
     }
 
     // udating the cover image 
-    const coverimg = await Uploadoncloudinary(newcoverImage.path);
+    const coverimg = await Uploadoncloudinary(coverImagePath);
     if (!coverimg) {
         throw new Showerror(500, "updateCoverimg: Error uploading new cover image");
     }
-    const updatedconerimg = User.findByIdAndUpdate(
+    const updatedcoverimg = await User.findByIdAndUpdate(
         req.user._id,
         {
             $set: {
@@ -297,7 +303,7 @@ const updateCoverimg = AsyncHandler(async (req, res) => {
         { new: true }
     ).select("-password -refreshToken");
 
-    return res.status(200).json(new ApiResponse(200, "Cover image updated successfully", updatedconerimg));
+    return res.status(200).json(new ApiResponse(200, "Cover image updated successfully", updatedcoverimg));
 })
 
 const getUserChannelProfile = AsyncHandler(async (req, res) => {
@@ -414,14 +420,14 @@ const getWatchHistory = AsyncHandler(async (req, res) => {
             }
         }
     ])
-
+    const historyList = user.length > 0 ? user[0].watchHistory : [];
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                user[0].watchHistory,
-                "Watch history fetched successfully"
+                "Watch history fetched successfully",
+                historyList
             )
         )
 })

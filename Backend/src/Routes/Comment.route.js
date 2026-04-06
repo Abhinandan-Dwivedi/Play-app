@@ -8,9 +8,10 @@ import {
 } from "../Controllers/Comment.controller.js";
 
 const router = Router();
-router.use(Authstatus);
 
-router.route("/:videoId").get(getVideoComments).post(createComment);
-router.route("/c/:commentId").delete(deletecomment).patch(updateComment);
+router.route("/:videoId").get(getVideoComments);
+
+router.route("/u/:videoId").post(Authstatus, createComment);
+router.route("/c/:commentId").delete(Authstatus, deletecomment).patch(Authstatus, updateComment);
 
 export default router;

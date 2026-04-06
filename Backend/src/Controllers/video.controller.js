@@ -5,6 +5,8 @@ import { Uploadoncloudinary, deletingfilefromcloudinary } from '../Utils/cloudin
 import ApiResponse from '../Utils/ApiResponse.js';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import { View } from '../Models/View.model.js';
+import { User } from '../Models/User.model.js';
 
 const uploadvideo = AsyncHandler(async (req, res) => {
 
@@ -22,12 +24,17 @@ const uploadvideo = AsyncHandler(async (req, res) => {
     const videoresult = await Uploadoncloudinary(videolocalpath);
     const thumbnailresult = await Uploadoncloudinary(thumbnailpath);
 
+    if (!videoresult || !videoresult.url || !thumbnailresult || !thumbnailresult.url) {
+        throw new Showerror(500, "Cloudinary upload failed");
+    }
+
     const video = await Video.create({
-        videoFile: videoresult?.url,
-        thumbnail: thumbnailresult?.url,
+        videoFile: videoresult.url,
+        thumbnail: thumbnailresult.url,
         owner: req.user._id,
         title,
         description,
+        duration: videoresult.duration || 0,
         isPublished: publiced === "true" ? true : false
     })
 
@@ -43,8 +50,7 @@ const deletevideo = AsyncHandler(async (req, res) => {
         throw new Showerror(400, "Video id is required");
     }
 
-    // Validate if videoId is a valid MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(videoId)) {
+     if (!mongoose.Types.ObjectId.isValid(videoId)) {
         throw new Showerror(400, "Invalid video id");
     }
 
@@ -76,30 +82,33 @@ const getAllVideos = AsyncHandler(async (req, res) => {
 
     const matchFilter = { isPublished: true };
 
-    // Add search query filter
-    if (query) {
+     if (query) {
         matchFilter.$or = [
             { title: { $regex: query, $options: "i" } },
             { description: { $regex: query, $options: "i" } }
         ];
     }
 
-    // Add userId filter if provided
-    if (userId) {
+     if (userId) {
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             throw new Showerror(400, "Invalid userId");
         }
         matchFilter.owner = new mongoose.Types.ObjectId(userId);
     }
 
-    // Determine sort order
-    const sortOrder = sortType === "asc" ? 1 : -1;
+     const sortOrder = sortType === "asc" ? 1 : -1;
     const sortObj = {};
     sortObj[sortBy] = sortOrder;
 
-    // Use aggregation with pagination
-    const aggregate = Video.aggregate([
+     const aggregate = Video.aggregate([
         { $match: matchFilter },
+         { $lookup: {
+            from: "users",
+            localField: "owner",
+            foreignField: "_id",
+            as: "owner"
+        } },
+        { $unwind: { path: "$owner", preserveNullAndEmptyArrays: true } },
         { $sort: sortObj }
     ]);
 
@@ -130,16 +139,31 @@ const getVideoById = AsyncHandler(async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(videoId)) {
         throw new Showerror(400, "Invalid video id");
     }
-    const video = await Video.findById(videoId).populate("owner", "name email");
-    if (!video) {
+    const videoDoc = await Video.findById(videoId).populate("owner", "username email fullname avatar");
+    if (!videoDoc) {
         throw new Showerror(404, "Video not found");
     }
+
+    // rename for clarity
+    const video = videoDoc;
 
     if (!video.isPublished && (!req.user || video.owner._id.toString() !== req.user._id.toString())) {
         throw new Showerror(403, "You are not authorized to view this video");
     }
 
-    return res.status(200).json(new ApiResponse(200, "Video fetched successfully", video));
+     const { like: LikesModel } = await import('../Models/likes.model.js');
+    const { Subscription } = await import('../Models/Subscription.model.js');
+
+    const likesCount = await LikesModel.countDocuments({ video: video._id });
+    const isLiked = req.user ? !!(await LikesModel.findOne({ owner: req.user._id, video: video._id })) : false;
+    const subscriberCount = await Subscription.countDocuments({ channels: video.owner._id });
+
+    const resultObj = video.toObject ? video.toObject() : video;
+    resultObj.likesCount = likesCount;
+    resultObj.isLiked = isLiked;
+    resultObj.subscriberCount = subscriberCount;
+
+    return res.status(200).json(new ApiResponse(200, "Video fetched successfully", resultObj));
 })
 
 const updateVideo = AsyncHandler(async (req, res) => {
@@ -194,7 +218,7 @@ const updateVideo = AsyncHandler(async (req, res) => {
 })
 
 const togglePublishStatus = AsyncHandler(async (req, res) => {
-    const { videoId } = req.params.videoId;
+    const { videoId } = req.params;
     if (!videoId) {
         throw new Showerror(400, " togglePublishStatus: Video id is required");
     }
@@ -214,12 +238,78 @@ const togglePublishStatus = AsyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, `Video ${video.isPublished ? "published" : "unpublished"} successfully`, video));
 })
 
+const incrementView = AsyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+    if (!videoId) {
+        throw new Showerror(400, "incrementView: Video id is required");
+    }
+    if (!mongoose.Types.ObjectId.isValid(videoId)) {
+        throw new Showerror(400, "incrementView: Invalid video id");
+    }
+
+     const today = new Date().toISOString().slice(0, 10);
+
+     const userId = req.user?._id || null;
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = (forwarded && forwarded.split(',')[0].trim()) || req.ip || req.connection?.remoteAddress || null;
+
+    try {
+        if (userId) {
+             
+            await User.findByIdAndUpdate(userId, {
+                $pull: { watchHistory: videoId }
+            });
+            await User.findByIdAndUpdate(userId, {
+                $push: { watchHistory: videoId }
+            });
+
+            
+            const existing = await View.findOne({ video: videoId, owner: userId, date: today });
+            
+            if (existing) {
+                const current = await Video.findById(videoId).select('views');
+                return res.status(200).json(new ApiResponse(200, 'View exists', { views: current?.views || 0 }));
+            }
+
+            await View.create({ video: videoId, owner: userId, date: today });
+            const updated = await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } }, { new: true });
+            
+            if (!updated) throw new Showerror(404, 'incrementView: Video not found');
+            return res.status(200).json(new ApiResponse(200, 'View incremented', { views: updated.views }));
+        }
+
+        if (ip) {
+            const existing = await View.findOne({ video: videoId, ip, date: today });
+            if (existing) {
+                const current = await Video.findById(videoId).select('views');
+                return res.status(200).json(new ApiResponse(200, 'View exists', { views: current?.views || 0 }));
+            }
+
+            await View.create({ video: videoId, ip, date: today });
+            const updated = await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } }, { new: true });
+            if (!updated) throw new Showerror(404, 'incrementView: Video not found');
+            return res.status(200).json(new ApiResponse(200, 'View incremented', { views: updated.views }));
+        }
+
+         const updated = await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } }, { new: true });
+        if (!updated) throw new Showerror(404, 'incrementView: Video not found');
+        return res.status(200).json(new ApiResponse(200, 'View incremented', { views: updated.views }));
+    } catch (err) {
+         if (err && err.code === 11000) {
+            const current = await Video.findById(videoId).select('views');
+            return res.status(200).json(new ApiResponse(200, 'View already recorded', { views: current?.views || 0 }));
+        }
+        throw err;
+    }
+});
+
 export {
     uploadvideo,
     deletevideo,
     getAllVideos,
     getVideoById,
     updateVideo,
-    togglePublishStatus
+    togglePublishStatus,
+    incrementView
 };
 

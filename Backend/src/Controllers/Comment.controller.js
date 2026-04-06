@@ -33,7 +33,7 @@ const createComment = AsyncHandler(async (req, res) => {
 })
 
 const deletecomment = AsyncHandler(async (req, res) => {
-    const commentId = req.params;
+    const {commentId }= req.params;
     if (!commentId) {
         throw new Showerror(400, "deletecomment : Comment id is required");
     }
@@ -53,7 +53,7 @@ const deletecomment = AsyncHandler(async (req, res) => {
 })
 
 const updateComment = AsyncHandler(async (req, res) => {
-    const commentId = req.params;
+    const {commentId} = req.params;
     const { content } = req.body;
     if (!commentId) {
         throw new Showerror(400, "updateComment : Comment id is required");
@@ -88,9 +88,13 @@ const getVideoComments = AsyncHandler(async (req, res) => {
         throw new Showerror(400, "Invalid video id");
     }
 
+    
+    const userId = req.user?._id || null;
+
     const aggregate = Comment.aggregate([
         { $match: { video: new mongoose.Types.ObjectId(videoId) } },
         { $sort: { createdAt: -1 } },
+        // Populate owner info
         {
             $lookup: {
                 from: "users",
@@ -100,11 +104,32 @@ const getVideoComments = AsyncHandler(async (req, res) => {
             }
         },
         { $unwind: "$owner" },
+        
+        {
+            $lookup: {
+                from: "likes",
+                let: { commentId: "$_id" },
+                pipeline: [
+                    { $match: { $expr: { $eq: ["$Comment", "$$commentId"] } } }
+                ],
+                as: "likes"
+            }
+        },
+       
+        {
+            $addFields: {
+                likesCount: { $size: "$likes" },
+                isLiked: userId ? { $gt: [ { $size: { $filter: { input: "$likes", as: "l", cond: { $eq: ["$$l.owner", new mongoose.Types.ObjectId(userId)] } } } }, 0 ] } : false
+            }
+        },
         {
             $project: {
                 content: 1,
                 createdAt: 1,
-                "owner.name": 1,
+                likesCount: 1,
+                isLiked: 1,
+                "owner._id": 1,
+                "owner.username": 1,
                 "owner.avatar": 1
             }
         }

@@ -16,8 +16,17 @@ const togglevideolike = AsyncHandler(async (req, res) => {
         return res.status(200).json(new ApiResponse(200, "Video unliked successfully"));
     }
     // create a like
-    const newLike = await likes.create({ owner: req.user._id, video: videoId });
-    return res.status(201).json(new ApiResponse(201, "Video liked successfully", newLike));
+    try {
+        const newLike = await likes.create({ owner: req.user._id, video: videoId });
+        return res.status(201).json(new ApiResponse(201, "Video liked successfully", newLike));
+    } catch (err) {
+        // Handle duplicate key race condition gracefully
+        if (err && err.code === 11000) {
+            const existing = await likes.findOne({ owner: req.user._id, video: videoId });
+            return res.status(200).json(new ApiResponse(200, "Video already liked", existing));
+        }
+        throw err;
+    }
 
 })
 

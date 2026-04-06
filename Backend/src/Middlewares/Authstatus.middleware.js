@@ -11,13 +11,18 @@ const Authstatus  = AsyncHandler( async ( req, res, next ) => {
         if ( !token ) {
             throw new Showerror( 401, "Unauthorized: No token provided" );
         }
-
-        const validatetoken = jwt.verify( token, process.env.JWT_SECRET);
+        let validatetoken;
+        try {
+            validatetoken = jwt.verify( token, process.env.JWT_SECRET);
+        } catch (verifyErr) {
+            console.error("Authstatus: token verification failed", { error: verifyErr && verifyErr.message, token: token ? token.substring(0,50) + '...' : token });
+            throw verifyErr;
+        }
         if ( !validatetoken || !validatetoken?._id ) {
             throw new Showerror( 401, "Unauthorized: Invalid token" );
         }
 
-        const existinguser = await User.findById( mongoose.Types.ObjectId( validatetoken._id ) ).select("-password -refreshToken");
+        const existinguser = await User.findById(validatetoken._id).select("-password -refreshToken");
         if ( !existinguser ) {
             throw new Showerror( 401, "Unauthorized: User not found" );
         }
@@ -25,6 +30,7 @@ const Authstatus  = AsyncHandler( async ( req, res, next ) => {
         next();
         
     } catch (error) { 
+        console.error('Authstatus caught error:', error && error.message);
         throw new Showerror( 401, "Unauthorized: Invalid user" );
     }
     
