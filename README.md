@@ -38,4 +38,4 @@
 ### Clone & Install
 ```bash
 git clone https://github.com/Abhinandan-Dwivedi/Play-app.git
-cd play-video-app
+cd Play-app
