@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AlertCircle, RefreshCcw, Video, Sparkles , Wand2 , MenuIcon} from "lucide-react";
+import { AlertCircle, RefreshCcw, Video, MoonStar , SunIcon } from "lucide-react";
 import api from "../Utils/axiosInstance.js";
 import VideoCard from "../Components/Videocard";
 import VideoSkeleton from "../Components/Videoskeleton";
@@ -42,7 +42,7 @@ function Home() {
                 <div className="mb-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div className="flex items-center gap-4">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 dark:bg-zinc-100">
-                            <Sparkles className="h-5 w-5 text-white dark:text-black" />
+                            <SunIcon className="h-5 w-5 text-white dark:text-black" />
                         </div>
 
                         <div>
