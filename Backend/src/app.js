@@ -11,7 +11,7 @@ const app = express();
 //     credentials: true
 // }));
 
-const frontendOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+const frontendOrigin = "https://playvideoapp.vercel.app";
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 
 app.use(express.json({ limit: "50kb" }));
