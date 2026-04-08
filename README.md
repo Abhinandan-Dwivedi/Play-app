@@ -1,4 +1,4 @@
-# PLAY | Next-Gen Video Streaming Platform
+# PLAY | Next-Gen Video Streaming Platform 
 
 **PLAY** is a high-performance, full-stack video hosting application built with the **MERN stack**. It combines a bold **Neobrutalist UI** with advanced features like AI-driven summaries and a rich subscription ecosystem.
 
@@ -39,3 +39,5 @@
 ```bash
 git clone https://github.com/Abhinandan-Dwivedi/Play-app.git
 cd Play-app
+```
+[Link Text](https://play-app-frontend-seven.vercel.app/)
