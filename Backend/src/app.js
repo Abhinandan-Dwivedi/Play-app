@@ -6,11 +6,22 @@ import { User } from './Models/User.model.js';
 
 const app = express();
 
+const allowedOrigins = [
+    'https://play-app-frontend-seven.vercel.app',
+    'https://play-app-frontend-git-main-04isfour-1265s-projects.vercel.app', // Add the failing one here
+    'https://play-app-frontend-n7ko9fmwr-04isfour-1265s-projects.vercel.app'
+];
+
 app.use(cors({
-    origin: 'https://play-app-frontend-seven.vercel.app',  
-    credentials: true, 
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            return callback(new Error('CORS Policy: This origin is not allowed'), false);
+        }
+        return callback(null, true);
+    },
+    credentials: true,
 }));
 
 // const frontendOrigin = 'https://play-app-frontend-seven.vercel.app/';
