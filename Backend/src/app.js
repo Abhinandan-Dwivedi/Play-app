@@ -11,7 +11,7 @@ const app = express();
 //     credentials: true
 // }));
 
-const frontendOrigin = "https://playvideoapp.vercel.app";
+const frontendOrigin = "https://playvideoapp-04isfour-1265s-projects.vercel.app/";
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 
 app.use(express.json({ limit: "50kb" }));
