@@ -6,10 +6,10 @@ import { User } from './Models/User.model.js';
 
 const app = express();
 
-// app.use (cors({
-//     origin: "http://localhost:Frontend-Port",
-//     credentials: true
-// }));
+app.use (cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true
+}));
 
 const frontendOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use(cors({ origin: frontendOrigin, credentials: true }));

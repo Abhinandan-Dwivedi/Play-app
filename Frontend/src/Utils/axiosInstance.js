@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "https://play-video.onrender.com/api/v1",
+    baseURL: import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api/v1",
 
     withCredentials: true,
 });
@@ -34,7 +34,7 @@ api.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                await axios.post("https://play-video.onrender.com/api/v1/user/refresh-token", {}, { withCredentials: true });
+                await axios.post(`${import.meta.env.VITE_BACKEND_URL}/user/refresh-token`, {}, { withCredentials: true });
 
                 return api(originalRequest);
             } catch (refreshError) {

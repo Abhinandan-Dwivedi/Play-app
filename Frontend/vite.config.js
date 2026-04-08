@@ -9,13 +9,13 @@ export default defineConfig({
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   server: {
-    proxy: {
-      '/api': {
-        target: 'https://play-video.onrender.com',
-        changeOrigin: true,
-        secure: false
-      }
-    }
+    // proxy: {
+    //   '/api': {
+    //     target: 'https://play-video.onrender.com',
+    //     changeOrigin: true,
+    //     secure: false
+    //   }
+    // }
   },
   theme: {
     extend: {},
