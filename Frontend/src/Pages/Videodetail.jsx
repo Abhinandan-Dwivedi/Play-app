@@ -103,6 +103,7 @@ function Videodetail() {
                             ref={videoRef}
                             src={proxyCloudinaryUrl(video.videoFile)}
                             poster={proxyCloudinaryUrl(video.thumbnail)}
+                            crossOrigin="anonymous"
                             controls
                             autoPlay
                             className="aspect-video h-full w-full bg-black shadow-inner"

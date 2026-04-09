@@ -8,7 +8,7 @@ export default defineConfig({
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  server: {
+  // server: {
     // proxy: {
     //   '/api': {
     //     target: 'https://play-video.onrender.com',
@@ -16,7 +16,7 @@ export default defineConfig({
     //     secure: false
     //   }
     // }
-  },
+  // },
   theme: {
     extend: {},
   },

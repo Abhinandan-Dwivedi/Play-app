@@ -1,15 +1,14 @@
 export function proxyCloudinaryUrl(url) {
-  if (!url || typeof url !== 'string') return url;
+   if (!url || typeof url !== 'string') return "";
 
-  if (url.startsWith('/api/v1/media')) return url;
+   if (url.startsWith('/')) return url;
 
-  try {
-    const parsed = new URL(url, window.location.origin);
-    if (!parsed.hostname.includes('res.cloudinary.com')) return url;
+  try { 
+    let securedUrl = url.replace("http://", "https://");
 
-    const proxied = `/api/v1/media/cloudinary${parsed.pathname}${parsed.search}`;
-    return proxied;
+    return securedUrl;
   } catch (e) {
+    console.error("URL transformation error:", e);
     return url;
   }
 }
