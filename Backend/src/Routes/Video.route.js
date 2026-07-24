@@ -7,7 +7,8 @@ import {
     getVideoById,
     updateVideo,
     togglePublishStatus,
-    incrementView
+    incrementView,
+    getVideoSummary
 } from "../Controllers/video.controller.js";
 import Authstatus from "../Middlewares/Authstatus.middleware.js";
 
@@ -47,5 +48,6 @@ router.route("/videodelete/:videoId").delete(Authstatus, deletevideo);
 router.route("/videos").get(getAllVideos);
 router.route("/videobyid/:videoId").get(getVideoById);
 router.route("/views/:videoId").post(Authstatus, incrementView);
+router.route("/:videoId/summary").get(Authstatus, getVideoSummary);
 
 export default router;

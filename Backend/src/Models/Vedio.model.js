@@ -34,6 +34,13 @@ const videoSchema = new Schema(
         owner: {
             type: Schema.Types.ObjectId,
             ref: "User"
+        },
+        
+        // AI Summary Cache
+        summary: {
+            overview: { type: String },
+            keyTakeaways: [{ type: String }],
+            generatedAt: { type: Date }
         }
 
     },
@@ -43,4 +50,4 @@ const videoSchema = new Schema(
 )
 videoSchema.plugin(mongooseAggregatePaginate);
 
-export const Video  = mongoose.model("Video", videoSchema);
+export const Video = mongoose.model("Video", videoSchema);

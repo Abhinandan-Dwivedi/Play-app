@@ -10,13 +10,15 @@ import {
   Loader2,
   AlertTriangle,
   Brain,
+  ListChecks,
 } from "lucide-react";
 
 function VideoSummary() {
   const { videoId } = useParams();
   const navigate = useNavigate();
 
-  const [summary, setSummary] = useState("");
+  // Initialize summary as null (or an object with overview & keyTakeaways)
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -25,10 +27,14 @@ function VideoSummary() {
     const fetchSummary = async () => {
       try {
         setLoading(true);
-        // const response = await api.get(`/api/v1/videos/${videoId}/summarize`);
-        // setSummary(response.data.data.summary);
+        const response = await api.get(`/video/${videoId}/summary`);
+        // response.data.data is { overview: string, keyTakeaways: string[] }
+        setSummary(response.data.data);
       } catch (err) {
-        setError("AI was unable to process this video. Ensure it has a transcript.");
+        setError(
+          err.response?.data?.message ||
+          "AI was unable to process this video. Ensure it has valid content."
+        );
       } finally {
         setLoading(false);
       }
@@ -38,7 +44,13 @@ function VideoSummary() {
   }, [videoId]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(summary);
+    if (!summary) return;
+
+    // Formats both overview and key takeaways into structured plain text
+    const textToCopy = `OVERVIEW:\n${summary.overview || ""}\n\nKEY TAKEAWAYS:\n${summary.keyTakeaways?.map((point) => `- ${point}`).join("\n") || ""
+      }`;
+
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -47,6 +59,7 @@ function VideoSummary() {
     <div className="min-h-screen bg-zinc-100 dark:bg-[#0B0B0D] px-4 py-8 md:px-8 lg:px-12 transition-colors">
       <div className="mx-auto max-w-5xl overflow-hidden rounded-[36px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-[0_30px_80px_rgba(0,0,0,0.12)]">
 
+        {/* Banner Header  */}
         <div className="relative overflow-hidden border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-br from-[#AE7AFF] via-[#9c6fff] to-[#7d5fff] px-6 py-8 md:px-10 md:py-10">
           <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-black/10 blur-2xl" />
@@ -64,7 +77,7 @@ function VideoSummary() {
               </h1>
 
               <p className="mt-4 max-w-xl text-sm leading-7 text-black/70 md:text-base">
-                Get an automatically generated summary and key insights from this video's transcript.
+                Get an automatically generated summary and key insights from this video.
               </p>
 
               <div className="mt-5 inline-flex items-center rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold text-black/70 backdrop-blur-sm">
@@ -73,13 +86,13 @@ function VideoSummary() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              {!loading && !error && (
+              {!loading && !error && summary && (
                 <Button
                   text={
                     <span className="flex items-center gap-2">
                       {copied ? (
                         <>
-                          <Check className="h-4 w-4" />
+                          <Check className="h-4 w-4 text-green-700" />
                           Copied
                         </>
                       ) : (
@@ -110,6 +123,7 @@ function VideoSummary() {
           </div>
         </div>
 
+        {/* Content Body */}
         <div className="p-6 md:p-10">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -122,7 +136,7 @@ function VideoSummary() {
               </h2>
 
               <p className="mt-3 max-w-md text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                Our AI is analyzing the transcript and extracting the most important information.
+                Our AI is processing the video content to extract key insights.
               </p>
 
               <div className="mt-10 w-full max-w-3xl space-y-4 animate-pulse">
@@ -158,36 +172,55 @@ function VideoSummary() {
                 className="mt-8 px-6"
               />
             </div>
-          ) : (
-            <div>
-              <div className="mb-8 flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#AE7AFF]/10 text-[#AE7AFF]">
-                  <Sparkles className="h-6 w-6" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-zinc-900 dark:text-white">
-                    Generated Summary
-                  </h2>
-                  <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                    Key points extracted from the video transcript.
-                  </p>
-                </div>
-              </div>
-
+          ) : summary ? (
+            <div className="space-y-8">
+              {/* Overview Section */}
               <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 p-6 md:p-8 shadow-inner">
-                <div className="prose prose-zinc dark:prose-invert max-w-none text-[15px] leading-8">
-                  <div className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
-                    {summary}
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#AE7AFF]/10 text-[#AE7AFF]">
+                    <Sparkles className="h-5 w-5" />
                   </div>
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
+                    Overview
+                  </h3>
                 </div>
+                <p className="text-[15px] leading-8 text-zinc-700 dark:text-zinc-300">
+                  {summary.overview}
+                </p>
               </div>
 
-              <div className="mt-8 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 dark:border-green-900/30 dark:bg-green-950/20 dark:text-green-400">
+              {/* Key Takeaways Section */}
+              {summary.keyTakeaways && summary.keyTakeaways.length > 0 && (
+                <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 p-6 md:p-8 shadow-inner">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#AE7AFF]/10 text-[#AE7AFF]">
+                      <ListChecks className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
+                      Key Takeaways
+                    </h3>
+                  </div>
+                  <ul className="space-y-3">
+                    {summary.keyTakeaways.map((point, index) => (
+                      <li
+                        key={index}
+                        className="flex items-start gap-3 text-[15px] leading-7 text-zinc-700 dark:text-zinc-300"
+                      >
+                        <span className="mt-1.5 flex h-2 w-2 shrink-0 rounded-full bg-[#AE7AFF]" />
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Success Badge */}
+              <div className="flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 dark:border-green-900/30 dark:bg-green-950/20 dark:text-green-400">
                 <Check className="h-4 w-4" />
-                Summary generated successfully using AI transcript analysis.
+                Summary generated successfully using AI analysis.
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

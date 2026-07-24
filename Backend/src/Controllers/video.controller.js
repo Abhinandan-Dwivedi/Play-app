@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { View } from '../Models/View.model.js';
 import { User } from '../Models/User.model.js';
+import { generateAISummary } from "../utils/aiService.js";
 
 const uploadvideo = AsyncHandler(async (req, res) => {
 
@@ -50,7 +51,7 @@ const deletevideo = AsyncHandler(async (req, res) => {
         throw new Showerror(400, "Video id is required");
     }
 
-     if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    if (!mongoose.Types.ObjectId.isValid(videoId)) {
         throw new Showerror(400, "Invalid video id");
     }
 
@@ -82,32 +83,34 @@ const getAllVideos = AsyncHandler(async (req, res) => {
 
     const matchFilter = { isPublished: true };
 
-     if (query) {
+    if (query) {
         matchFilter.$or = [
             { title: { $regex: query, $options: "i" } },
             { description: { $regex: query, $options: "i" } }
         ];
     }
 
-     if (userId) {
+    if (userId) {
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             throw new Showerror(400, "Invalid userId");
         }
         matchFilter.owner = new mongoose.Types.ObjectId(userId);
     }
 
-     const sortOrder = sortType === "asc" ? 1 : -1;
+    const sortOrder = sortType === "asc" ? 1 : -1;
     const sortObj = {};
     sortObj[sortBy] = sortOrder;
 
-     const aggregate = Video.aggregate([
+    const aggregate = Video.aggregate([
         { $match: matchFilter },
-         { $lookup: {
-            from: "users",
-            localField: "owner",
-            foreignField: "_id",
-            as: "owner"
-        } },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner"
+            }
+        },
         { $unwind: { path: "$owner", preserveNullAndEmptyArrays: true } },
         { $sort: sortObj }
     ]);
@@ -151,7 +154,7 @@ const getVideoById = AsyncHandler(async (req, res) => {
         throw new Showerror(403, "You are not authorized to view this video");
     }
 
-     const { like: LikesModel } = await import('../Models/likes.model.js');
+    const { like: LikesModel } = await import('../Models/likes.model.js');
     const { Subscription } = await import('../Models/Subscription.model.js');
 
     const likesCount = await LikesModel.countDocuments({ video: video._id });
@@ -234,7 +237,7 @@ const togglePublishStatus = AsyncHandler(async (req, res) => {
     }
 
     video.isPublished = !video.isPublished;
-    await video.save( {validationBeforeSave: false });
+    await video.save({ validationBeforeSave: false });
     return res.status(200).json(new ApiResponse(200, `Video ${video.isPublished ? "published" : "unpublished"} successfully`, video));
 })
 
@@ -247,15 +250,15 @@ const incrementView = AsyncHandler(async (req, res) => {
         throw new Showerror(400, "incrementView: Invalid video id");
     }
 
-     const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
 
-     const userId = req.user?._id || null;
+    const userId = req.user?._id || null;
     const forwarded = req.headers['x-forwarded-for'];
     const ip = (forwarded && forwarded.split(',')[0].trim()) || req.ip || req.connection?.remoteAddress || null;
 
     try {
         if (userId) {
-             
+
             await User.findByIdAndUpdate(userId, {
                 $pull: { watchHistory: videoId }
             });
@@ -263,9 +266,9 @@ const incrementView = AsyncHandler(async (req, res) => {
                 $push: { watchHistory: videoId }
             });
 
-            
+
             const existing = await View.findOne({ video: videoId, owner: userId, date: today });
-            
+
             if (existing) {
                 const current = await Video.findById(videoId).select('views');
                 return res.status(200).json(new ApiResponse(200, 'View exists', { views: current?.views || 0 }));
@@ -273,7 +276,7 @@ const incrementView = AsyncHandler(async (req, res) => {
 
             await View.create({ video: videoId, owner: userId, date: today });
             const updated = await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } }, { new: true });
-            
+
             if (!updated) throw new Showerror(404, 'incrementView: Video not found');
             return res.status(200).json(new ApiResponse(200, 'View incremented', { views: updated.views }));
         }
@@ -291,16 +294,46 @@ const incrementView = AsyncHandler(async (req, res) => {
             return res.status(200).json(new ApiResponse(200, 'View incremented', { views: updated.views }));
         }
 
-         const updated = await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } }, { new: true });
+        const updated = await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } }, { new: true });
         if (!updated) throw new Showerror(404, 'incrementView: Video not found');
         return res.status(200).json(new ApiResponse(200, 'View incremented', { views: updated.views }));
     } catch (err) {
-         if (err && err.code === 11000) {
+        if (err && err.code === 11000) {
             const current = await Video.findById(videoId).select('views');
             return res.status(200).json(new ApiResponse(200, 'View already recorded', { views: current?.views || 0 }));
         }
         throw err;
     }
+})
+const getVideoSummary = AsyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    const video = await Video.findById(videoId);
+    if (!video) {
+        throw new Showerror(404, "Video not found");
+    }
+
+
+    if (video.summary && video.summary.overview) {
+        return res
+            .status(200)
+            .json(new ApiResponse(200, video.summary, "Fetched summary from cache"));
+    }
+
+    const contentToSummarize = `Title: ${video.title}\nDescription: ${video.description}`;
+
+    const aiResult = await generateAISummary(contentToSummarize);
+
+    video.summary = {
+        overview: aiResult.overview,
+        keyTakeaways: aiResult.keyTakeaways,
+        generatedAt: new Date()
+    };
+    await video.save({ validateBeforeSave: false });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, video.summary, "Summary generated successfully"));
 });
 
 export {
@@ -310,6 +343,7 @@ export {
     getVideoById,
     updateVideo,
     togglePublishStatus,
-    incrementView
+    incrementView,
+    getVideoSummary
 };
 

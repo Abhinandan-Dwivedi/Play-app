@@ -9,7 +9,8 @@ const app = express();
 const allowedOrigins = [
     'https://play-app-frontend-seven.vercel.app',
     'https://play-app-frontend-git-main-04isfour-1265s-projects.vercel.app', // Add the failing one here
-    'https://play-app-frontend-n7ko9fmwr-04isfour-1265s-projects.vercel.app'
+    'https://play-app-frontend-n7ko9fmwr-04isfour-1265s-projects.vercel.app',
+	'http://localhost:5173'
 ];
 
 app.use(cors({
