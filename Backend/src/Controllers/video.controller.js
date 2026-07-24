@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { View } from '../Models/View.model.js';
 import { User } from '../Models/User.model.js';
-import { generateAISummary } from "../utils/aiService.js";
+import { generateAISummary } from "../Utils/aiService.js";
 
 const uploadvideo = AsyncHandler(async (req, res) => {
 
