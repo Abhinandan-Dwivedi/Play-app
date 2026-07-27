@@ -41,3 +41,6 @@ git clone https://github.com/Abhinandan-Dwivedi/Play-app.git
 cd Play-app
 ```
 [Link Text](https://play-app-frontend-seven.vercel.app/)
+
+Backend -> play-app/Backend
+Frontend -> play-app-frontend
