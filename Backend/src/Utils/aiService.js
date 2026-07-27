@@ -26,8 +26,14 @@ export const generateAISummary = async (textContent) => {
       },
     });
 
-    const parsedData = JSON.parse(response.text);
-    return parsedData;
+    const rawText = response?.text || "";
+    const cleanedText = rawText.replace(/```(?:json)?/gi, "").trim();
+    const parsedData = JSON.parse(cleanedText);
+
+    return {
+      overview: parsedData?.overview || "",
+      keyTakeaways: Array.isArray(parsedData?.keyTakeaways) ? parsedData.keyTakeaways : [],
+    };
   } catch (error) {
     console.error("AI Generation Error:", error);
     throw new Error("Failed to generate AI summary");

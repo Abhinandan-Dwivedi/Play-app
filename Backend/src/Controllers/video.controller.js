@@ -317,7 +317,7 @@ const getVideoSummary = AsyncHandler(async (req, res) => {
     if (video.summary && video.summary.overview) {
         return res
             .status(200)
-            .json(new ApiResponse(200, video.summary, "Fetched summary from cache"));
+            .json(new ApiResponse(200, "Fetched summary from cache", video.summary));
     }
 
     const contentToSummarize = `Title: ${video.title}\nDescription: ${video.description}`;
@@ -333,7 +333,7 @@ const getVideoSummary = AsyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, video.summary, "Summary generated successfully"));
+        .json(new ApiResponse(200, "Summary generated successfully", video.summary));
 });
 
 export {
